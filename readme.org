@@ -11,9 +11,9 @@
   ➜ telnet localhost 9999
   #+END_EXAMPLE
 
-* TODO 待完成 [1/7]
+* TODO 待完成 [2/7]
   - [X] telnet echo 交互
-  - [ ] libevent
+  - [X] libevent
   - [ ] http 协议解析
   - [ ] rpc
   - [ ] fork, daemon

@@ -2,10 +2,11 @@
 
 namespace SimpleWorkerman;
 
-use SimpleWorkerman\Connection\SimpleTcpConnection;
-use SimpleWorkerman\EventLoop\SimpleSelectEventLoop;
+use EventLoopInterface;
+use SimpleWorkerman\Connection\TcpConnection;
+use SimpleWorkerman\EventLoop\LibeventEventLoop;
 
-class SimpleWorker
+class Worker
 {
     public $onConnect;
 
@@ -17,12 +18,12 @@ class SimpleWorker
     public static $allSockets = [];
 
     /**
-     * @var SimpleTcpConnection[]
+     * @var TcpConnection[]
      */
     public static $connections = [];
 
     /**
-     * @var SimpleSelectEventLoop
+     * @var EventLoopInterface
      */
     public static $event_loop;
 
@@ -31,7 +32,7 @@ class SimpleWorker
         echo "listen {$address}" . PHP_EOL;
         stream_set_blocking($this->main_socket, 0);
         static::$allSockets[(int)$this->main_socket] = $this->main_socket;
-        static::$event_loop = new SimpleSelectEventLoop();
+        static::$event_loop = new LibeventEventLoop();
     }
 
     public function run()

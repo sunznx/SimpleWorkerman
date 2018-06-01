@@ -2,17 +2,17 @@
 
 namespace SimpleWorkerman\EventLoop;
 
-use SimpleWorkerman\Connection\SimpleTcpConnection;
-use SimpleWorkerman\SimpleWorker;
+use SimpleWorkerman\Connection\TcpConnection;
+use SimpleWorkerman\Worker;
 
-class SimpleSelectEventLoop
+class SelectEventLoop implements EventLoopInterface
 {
-    public static function run(SimpleWorker $worker)
+    public static function run(Worker $worker)
     {
         while (1) {
             $write = null;
             $except = null;
-            $read = SimpleWorker::$allSockets;
+            $read = Worker::$allSockets;
 
             stream_select($read, $write, $except, 60);
             foreach ($read as $index => $socket) {
@@ -22,19 +22,19 @@ class SimpleSelectEventLoop
                         continue;
                     }
 
-                    $conn = new SimpleTcpConnection($new_conn_socket);
+                    socket_set_nonblock($new_conn_socket);
+                    $conn = new TcpConnection($new_conn_socket);
                     if ($worker->onConnect) {
                         call_user_func_array($worker->onConnect, [$conn]);
                     }
                 } else {
-                    $conn = SimpleWorker::$connections[$socket];
+                    $conn = Worker::$connections[$socket];
                     $buffer = $conn->read();
                     if ($buffer === '' || $buffer === false) {
                         if ($worker->onClose) {
                             call_user_func_array($worker->onClose, [$conn]);
                         }
                         $conn->close();
-                        unset(SimpleWorker::$connections[$socket]);
                         continue;
                     }
 

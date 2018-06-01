@@ -2,17 +2,17 @@
 
 namespace SimpleWorkerman\Connection;
 
-use SimpleWorkerman\SimpleWorker;
+use SimpleWorkerman\Worker;
 
-class SimpleTcpConnection
+class TcpConnection
 {
     protected $socket;
 
     public function __construct($socket)
     {
         $this->socket = $socket;
-        SimpleWorker::$allSockets[(int)$this->socket] = $this->socket;
-        SimpleWorker::$connections[(int)$this->socket] = $this;
+        Worker::$allSockets[(int)$this->socket] = $this->socket;
+        Worker::$connections[(int)$this->socket] = $this;
     }
 
     public function read()
@@ -28,12 +28,13 @@ class SimpleTcpConnection
     public function close()
     {
         fclose($this->socket);
-        unset(SimpleWorker::$allSockets[(int)$this->socket]);
+        unset(Worker::$allSockets[(int)$this->socket]);
+        unset(Worker::$connections[(int)$this->socket]);
     }
 
-    public static function broadcast(SimpleTcpConnection $from, $buff)
+    public static function broadcast(TcpConnection $from, $buff)
     {
-        foreach (SimpleWorker::$connections as $to) {
+        foreach (Worker::$connections as $to) {
             if ($from === $to) {
                 continue;
             }
