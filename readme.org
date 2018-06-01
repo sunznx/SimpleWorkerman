@@ -1,0 +1,21 @@
+* run
+  #+BEGIN_EXAMPLE
+  # session1
+  ➜ composer dump-autoload
+  ➜ php index.php
+
+  # session2
+  ➜ telnet localhost 9999
+
+  # session3
+  ➜ telnet localhost 9999
+  #+END_EXAMPLE
+
+* TODO 待完成 [1/7]
+  - [X] telnet echo 交互
+  - [ ] libevent
+  - [ ] http 协议解析
+  - [ ] rpc
+  - [ ] fork, daemon
+  - [ ] signal
+  - [ ] ...
