@@ -2,8 +2,8 @@
 
 namespace SimpleWorkerman;
 
-use EventLoopInterface;
 use SimpleWorkerman\Connection\TcpConnection;
+use SimpleWorkerman\EventLoop\EventLoopInterface;
 use SimpleWorkerman\EventLoop\LibeventEventLoop;
 
 class Worker
