@@ -5,9 +5,24 @@ namespace SimpleWorkerman\EventLoop;
 use SimpleWorkerman\Connection\TcpConnection;
 use SimpleWorkerman\Worker;
 
+/**
+ * Class SelectEventLoop
+ * @package SimpleWorkerman\EventLoop
+ * @deprecated
+ */
 class SelectEventLoop implements EventLoopInterface
 {
-    public static function run(Worker $worker)
+    public function add($socket, callable $cb)
+    {
+
+    }
+
+    public function del($socket)
+    {
+
+    }
+
+    public function run(Worker $worker)
     {
         while (1) {
             $write = null;
@@ -23,13 +38,13 @@ class SelectEventLoop implements EventLoopInterface
                     }
 
                     socket_set_nonblock($new_conn_socket);
-                    $conn = new TcpConnection($new_conn_socket);
+                    $conn = new TcpConnection($new_conn_socket, $worker);
                     if ($worker->onConnect) {
                         call_user_func_array($worker->onConnect, [$conn]);
                     }
                 } else {
                     $conn = Worker::$connections[$socket];
-                    $buffer = $conn->read();
+                    $buffer = $conn->recv();
                     if ($buffer === '' || $buffer === false) {
                         if ($worker->onClose) {
                             call_user_func_array($worker->onClose, [$conn]);

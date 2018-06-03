@@ -6,5 +6,7 @@ use SimpleWorkerman\Worker;
 
 interface EventLoopInterface
 {
-    public static function run(Worker $worker);
+    public function run(Worker $worker);
+    public function add($socket, callable $cb);
+    public function del($socket);
 }

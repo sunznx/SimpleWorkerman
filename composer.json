@@ -3,5 +3,8 @@
     "psr-4": {
       "SimpleWorkerman\\": "src/"
     }
+  },
+  "require": {
+    "phpunit/phpunit": "^6.5"
   }
 }
