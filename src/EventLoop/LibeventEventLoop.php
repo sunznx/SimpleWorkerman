@@ -63,4 +63,9 @@ class LibeventEventLoop implements EventLoopInterface
 
         $this->event_base->loop();
     }
+
+    public function stop(Worker $worker)
+    {
+
+    }
 }

@@ -89,7 +89,6 @@ class TcpConnection implements ConnectionInterface
 
     protected function parserHandler()
     {
-        echo $this->recv_buff . PHP_EOL;
         $parser = $this->worker->parser;
         $this->parsed_len = $parser::input($this->recv_buff, $this);
         if ($this->parsed_len <= 0) {  // 不是一个完整的包，下次继续

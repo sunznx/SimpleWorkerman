@@ -12,7 +12,7 @@ use SimpleWorkerman\Worker;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-class TextProtocolTest extends TestCase
+class JsonIntProtocolTest extends TestCase
 {
     protected $socket;
     protected $client_socket;
@@ -32,17 +32,21 @@ class TextProtocolTest extends TestCase
     public function test_send()
     {
         $this->assertEquals($this->errno, 0);
-        $buff = "text1";
-        socket_write($this->socket, $buff, strlen($buff));
-        sleep(1);
-        $buff = "text2";
-        socket_write($this->socket, $buff, strlen($buff));
-        sleep(1);
-        $buff = "\n";
-        socket_write($this->socket, $buff, strlen($buff));
 
+        $arr = ['key' => 'value'];
+        $buff = json_encode($arr);
+        $len = strlen($buff) + 4;
+        $buff = pack("Na*", $len, $buff);
+
+        $str1 = substr($buff, 0, 3);
+        $str2 = substr($buff, 3);
+        socket_write($this->socket, $str1, strlen($str1));
+        sleep(3);
+        socket_write($this->socket, $str2, strlen($str2));
         $recv = socket_read($this->socket, 65535);
-        $this->assertEquals("text1text2", trim($recv));
+
+        $res = unpack("Nlen/a*str", $recv);
+        $this->assertEquals($res['str'], json_encode($arr));
     }
 
     protected function tearDown()

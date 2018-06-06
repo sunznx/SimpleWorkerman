@@ -11,16 +11,17 @@
   ➜ telnet localhost 9999
   #+END_EXAMPLE
 
-* TODO 待完成 [3/13]
+* TODO 待完成 [5/13]
   - [X] [2018-06-01] telnet echo 交互
   - [X] [2018-06-01] libevent
   - [X] [2018-06-03] 支持 protocol text
-  - [ ] 支持 protocol json, jsonInt
+  - [X] [2018-06-06]支持 protocol json, jsonInt
+  - [X] [2018-06-05] daemon, =php index start -d=, =php index stop=
+  - [ ] http 基本协议解析
+  - [ ] http session, http keep alive ..
+  - [ ] rpc
+  - [ ] protocol 解析有问题，解析不完整的协议包的时候，连接还是保持着，这里应该有个超时断开
+  - [ ] 多 worker 支持
+  - [ ] signal
   - [ ] log
   - [ ] libevent write event
-  - [ ] http 基本协议解析
-  - [ ] rpc
-  - [ ] fork, daemon
-  - [ ] signal
-  - [ ] http session, http keep alive ..
-  - [ ] protocol 解析有问题，解析不完整的协议包的时候，连接还是保持着，这里应该有个超时断开
