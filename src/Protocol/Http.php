@@ -16,11 +16,12 @@ class Http implements ProtocolInterface
 
     public static function input($recv_buffer, ConnectionInterface $connection)
     {
+        if (strlen($recv_buffer) >= TcpConnection::MAX_PACKAGE_SIZE) {
+            $connection->close();
+            return 0;
+        }
+
         if (strpos($recv_buffer, "\r\n\r\n") === false) {
-            if (strlen($recv_buffer) >= TcpConnection::MAX_PACKAGE_SIZE) {
-                $connection->close();
-                return 0;
-            }
             return 0;
         }
 
