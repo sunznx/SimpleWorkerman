@@ -5,6 +5,7 @@
     }
   },
   "require": {
-    "phpunit/phpunit": "^6.5"
+    "phpunit/phpunit": "^6.5",
+    "monolog/monolog": "^1.23"
   }
 }

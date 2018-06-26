@@ -1,30 +1,562 @@
-* run
-  #+BEGIN_EXAMPLE
-  # session1
-  ➜ composer dump-autoload
-  ➜ php index.php
+* 说明
+  整个框架就是抄的 workerman，我是从头开始抄，从最基本的 echo 服务开始抄
 
-  # session2
-  ➜ telnet localhost 9999
+  这只是一个学习项目
 
-  # session3
-  ➜ telnet localhost 9999
-  #+END_EXAMPLE
+* TODO 待完成 [13/21]
+  - [X] telnet echo 交互
+    [2018-06-01] 完成
 
-* TODO 待完成 [5/16]
-  - [X] [2018-06-01] telnet echo 交互
-  - [X] [2018-06-01] libevent
-  - [X] [2018-06-03] 支持 protocol text
-  - [X] [2018-06-06]支持 protocol json, jsonInt
-  - [X] [2018-06-05] daemon, =php index start -d=, =php index stop=
-  - [ ] http 基本协议解析
-  - [ ] http session, http keep alive ..
-  - [ ] redis 协议
-  - [ ] 连接池
-  - [ ] rpc
-  - [ ] 协程
-  - [ ] protocol 解析有问题，解析不完整的协议包的时候，连接还是保持着，这里应该有个超时断开
-  - [ ] 多 worker 支持
+  - [X] libevent
+    [2018-06-01] 完成
+
+  - [X] 支持 protocol text
+    [2018-06-03] 完成
+
+  - [X] 支持 protocol json, jsonInt
+    [2018-06-06] 完成
+
+  - [X] daemon, =php index.php start -d=, =php index.php stop=
+    [2018-06-05] 完成
+
+  - [X] http 基本协议解析 (这部分现在直接抄的 workerman)
+    [2018-06-09] 完成
+
+  - [X] http keep alive
+    [2018-06-09] 完成
+
+  - [X] http session
+    [2018-06-12] 完成
+
+  - [X] JsonRPC
+    [2018-06-13] 完成
+
+  - [X] libevent write event
+    [2018-06-20] 完成
+
+  - [X] Timer（通过 libevent timer 实现）
+    [2018-06-23] 完成
+
+  - [X] http 协议的 close 有问题，会有 time-wait，主要是 keep-alive 实现得有问题 (暂时先这样，能跑起来就好了)
+    [2018-06-24] time wait 问题是正常的，因为测试的时候 client 也是本机，tcp 协议中先发送 close 的一方会主动进入 time wait 状态
+
+  - [X] 多 worker 支持
+    [2018-06-24] (不支持 mac [mac 上的 event 扩展有 bug])
+    [2018-06-25] 该 bug 是 libevent 在多进程环境下的问题，需要了解多进程怎么搞 reactor
+    [2018-06-26] 解决的方法是：libevent 的 event_base 在 fork 之后创建，这样每个 worker 进程维护一个 libevent event_base 实例
+
   - [ ] signal
+
+
+  - [ ] 异步任务
   - [ ] log
-  - [ ] libevent write event
+  - [ ] x 协程 (这里没法实现啊 - -)
+  - [ ] x ssl 协议 (暂时没用)
+  - [ ] protocol 解析有问题，解析不完整的协议包的时候，连接还是保持着，这里应该有个超时断开，workerman 的 http keep-alive 没有 timeout 的机制
+  - [ ] redis 协议
+  - [ ] buffer 优化，buffer 满，buffer 空
+
+* workerman http keep-alive
+  WebServer.php
+  #+BEGIN_SRC php -r
+  public function onMessage($connection)
+  {
+      // 如果是 php 脚本
+      if ($workerman_file_extension === 'php') {
+          $workerman_cwd = getcwd();
+          chdir($workerman_root_dir);
+          ini_set('display_errors', 'off');
+          ob_start();
+
+          try {
+              // $_SERVER.
+              $_SERVER['REMOTE_ADDR'] = $connection->getRemoteIp();
+              $_SERVER['REMOTE_PORT'] = $connection->getRemotePort();
+
+              include $workerman_file;
+          } catch (\Exception $e) {
+              // Jump_exit?
+              if ($e->getMessage() != 'jump_exit') {
+                  Worker::safeEcho($e);
+              }
+          }
+
+          $content = ob_get_clean();  // php 脚本执行的内容
+
+          ini_set('display_errors', 'on');
+
+          // keep-alive
+          if (strtolower($_SERVER['HTTP_CONNECTION']) === "keep-alive") {
+              $connection->send($content);
+          } else {
+              $connection->close($content);
+          }
+
+          chdir($workerman_cwd);
+          return;
+      }
+
+      // 如果是静态资源
+      return self::sendFile($connection, $workerman_file);
+  }
+
+  public static function sendFile($connection, $file_path)
+  {
+      // Check 304.
+      $info = stat($file_path);
+      $modified_time = $info ? date('D, d M Y H:i:s', $info['mtime']) . ' ' . date_default_timezone_get() : '';
+      if ( !empty($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $info) {
+          // Http 304.
+          if ($modified_time === $_SERVER['HTTP_IF_MODIFIED_SINCE']) { // 304
+              Http::header('HTTP/1.1 304 Not Modified');
+
+              // Send nothing but http headers..
+              $connection->close('');
+              return;
+          }
+      }
+
+      // Http header.
+      if ($modified_time) {
+          $modified_time = "Last-Modified: $modified_time\r\n";
+      }
+
+      $file_size = filesize($file_path);
+      $file_info = pathinfo($file_path);
+      $extension = isset($file_info['extension']) ? $file_info['extension'] : '';
+      $file_name = isset($file_info['filename']) ? $file_info['filename'] : '';
+
+      $header = "HTTP/1.1 200 OK\r\n";
+      if (isset(self::$mimeTypeMap[$extension])) {
+          $header .= "Content-Type: " . self::$mimeTypeMap[$extension] . "\r\n";
+      } else {
+          $header .= "Content-Type: application/octet-stream\r\n";
+          $header .= "Content-Disposition: attachment; filename=\"$file_name\"\r\n";
+      }
+      $header .= "Connection: keep-alive\r\n";
+      $header .= $modified_time;
+      $header .= "Content-Length: $file_size\r\n\r\n";
+      $trunk_limit_size = 1024 * 1024;
+      if ($file_size < $trunk_limit_size) {
+          return $connection->send($header . file_get_contents($file_path), true);
+      }
+
+      $connection->send($header, true);
+
+      // Read file content from disk piece by piece and send to client.
+      $connection->fileHandler = fopen($file_path, 'r');
+      $do_write = function () use ($connection) {
+          // Send buffer not full.
+          while (empty($connection->bufferFull)) {
+              // Read from disk.
+              $buffer = fread($connection->fileHandler, 8192);
+              // Read eof.
+              if ($buffer === '' || $buffer === false) {
+                  return;
+              }
+              $connection->send($buffer, true);
+          }
+      };
+
+      // Send buffer full.
+      $connection->onBufferFull = function ($connection) {
+          $connection->bufferFull = true;
+      };
+
+      // Send buffer drain.
+      $connection->onBufferDrain = function ($connection) use ($do_write) {
+          $connection->bufferFull = false;
+          $do_write();
+      };
+
+      $do_write();
+  }
+  #+END_SRC
+
+  这里 keep-alive 的处理逻辑是：
+  如果是 keep-alive，发送完 content 之后不关掉 tcp 的 connection
+  如果不是 keep-alive，发送完 content 直接调用 =connection->close()=
+
+* workerman session 解读
+  workerman 如何处理 session 的
+  #+BEGIN_SRC php -r
+  $http_worker = new Worker("http://{$host}:{$port}");
+
+  $http_worker->onMessage = function (TcpConnection $connection) {
+      Http::sessionStart();
+      $_SESSION['uid'] = 1;
+  }
+
+  Worker::runAll();
+  #+END_SRC
+
+  Protocols/Http.php
+  #+BEGIN_SRC php -r
+  public static function decode($recv_buffer, TcpConnection $connection)
+  {
+      $_POST = $_GET = $_COOKIE = $_REQUEST = $_SESSION = $_FILES = array();
+      $GLOBALS['HTTP_RAW_POST_DATA'] = '';
+
+      HttpCache::$header = array('Connection' => 'Connection: keep-alive');
+
+      // 重新生成一个 HttpCache (http session)
+      HttpCache::$instance = new HttpCache();
+
+      // ...
+  }
+
+  public static function init()
+  {
+      if (!self::$sessionName) {
+          self::$sessionName = ini_get('session.name');
+      }
+
+      if (!self::$sessionPath) {
+          self::$sessionPath = @session_save_path();
+      }
+
+      if (!self::$sessionPath || strpos(self::$sessionPath, 'tcp://') === 0) {
+          self::$sessionPath = sys_get_temp_dir();
+      }
+
+      if ($gc_probability = ini_get('session.gc_probability')) {
+          self::$sessionGcProbability = $gc_probability;
+      }
+
+      if ($gc_divisor = ini_get('session.gc_divisor')) {
+          self::$sessionGcDivisor = $gc_divisor;
+      }
+
+      if ($gc_max_life_time = ini_get('session.gc_maxlifetime')) {
+          self::$sessionGcMaxLifeTime = $gc_max_life_time;
+      }
+  }
+
+  public static function sessionStart()
+  {
+      // TODO
+      self::tryGcSessions();
+
+      if (HttpCache::$instance->sessionStarted) {
+          Worker::safeEcho("already sessionStarted\n");
+          return true;
+      }
+
+
+      HttpCache::$instance->sessionStarted = true;
+
+      // 如果 session_file 不存在，生成一个，并设置 client 浏览器的 cookie
+      if (!isset($_COOKIE[HttpCache::$sessionName]) ||
+          !is_file(HttpCache::$sessionPath . '/sess_' . $_COOKIE[HttpCache::$sessionName])) {
+
+          while (true) {
+              $session_id = static::sessionCreateId();
+              if (!is_file($file_name = HttpCache::$sessionPath . '/sess_' . $session_id)) {
+                  break;
+              }
+          }
+
+          HttpCache::$instance->sessionFile = $file_name;
+          return self::setcookie(
+              HttpCache::$sessionName,
+              $session_id,
+              ini_get('session.cookie_lifetime'),
+              ini_get('session.cookie_path'),
+              ini_get('session.cookie_domain'),
+              ini_get('session.cookie_secure'),
+              ini_get('session.cookie_httponly')
+          );
+      }
+
+      if ( !HttpCache::$instance->sessionFile) {
+          HttpCache::$instance->sessionFile = HttpCache::$sessionPath . '/sess_' . $_COOKIE[HttpCache::$sessionName];
+      }
+
+      if (HttpCache::$instance->sessionFile) {
+          $raw = file_get_contents(HttpCache::$instance->sessionFile);
+          if ($raw) {
+              $_SESSION = unserialize($raw);
+          }
+      }
+
+      return true;
+  }
+
+  public static function header($content, $replace = true, $http_response_code = 0)
+  {
+      if (strpos($content, 'HTTP') === 0) {
+          $key = 'Http-Code';
+      } else {
+          $key = strstr($content, ":", true);
+          if (empty($key)) {
+              return false;
+          }
+      }
+
+      if ('location' === strtolower($key) && !$http_response_code) {
+          return self::header($content, true, 302);
+      }
+
+      if (isset(HttpCache::$codes[$http_response_code])) {
+          HttpCache::$header['Http-Code'] = "HTTP/1.1 $http_response_code " . HttpCache::$codes[$http_response_code];
+          if ($key === 'Http-Code') {
+              return true;
+          }
+      }
+
+      if ($key === 'Set-Cookie') {
+          HttpCache::$header[$key][] = $content;
+      } else {
+          HttpCache::$header[$key] = $content;
+      }
+
+      return true;
+  }
+
+  // header 生效
+  public static function encode($content, TcpConnection $connection)
+  {
+      // Default http-code.
+      if ( !isset(HttpCache::$header['Http-Code'])) {
+          $header = "HTTP/1.1 200 OK\r\n";
+      } else {
+          $header = HttpCache::$header['Http-Code'] . "\r\n";
+          unset(HttpCache::$header['Http-Code']);
+      }
+
+      // Content-Type
+      if ( !isset(HttpCache::$header['Content-Type'])) {
+          $header .= "Content-Type: text/html;charset=utf-8\r\n";
+      }
+
+      // other headers
+      foreach (HttpCache::$header as $key => $item) {
+          if ('Set-Cookie' === $key && is_array($item)) {
+              foreach ($item as $it) {
+                  $header .= $it . "\r\n";
+              }
+          } else {
+              $header .= $item . "\r\n";
+          }
+      }
+
+      // header
+      $header .= "Server: workerman/" . Worker::VERSION . "\r\nContent-Length: " . strlen($content) . "\r\n\r\n";
+
+      // save session
+      self::sessionWriteClose();
+
+      // the whole http package
+      return $header . $content;
+  }
+
+  public static function sessionWriteClose()
+  {
+      if ( !empty(HttpCache::$instance->sessionStarted) && !empty($_SESSION)) {
+          $session_str = serialize($_SESSION);
+          if ($session_str && HttpCache::$instance->sessionFile) {
+              return file_put_contents(HttpCache::$instance->sessionFile, $session_str);
+          }
+      }
+      return empty($_SESSION);
+  }
+
+  public static function tryGcSessions()
+  {
+      if (HttpCache::$sessionGcProbability <= 0 ||
+          HttpCache::$sessionGcDivisor <= 0 ||
+          rand(1, HttpCache::$sessionGcDivisor) > HttpCache::$sessionGcProbability) {
+          return;
+      }
+
+      $time_now = time();
+      foreach (glob(HttpCache::$sessionPath . '/ses*') as $file) {
+          if (is_file($file) && $time_now - filemtime($file) > HttpCache::$sessionGcMaxLifeTime) {
+              unlink($file);
+          }
+      }
+  }
+  #+END_SRC
+
+* workerman JsonRPC 解读
+  jsonNL 协议
+  #+BEGIN_SRC php -r
+  public static function input($buffer)
+  {
+      $pos = strpos($buffer, "\n");
+      if ($pos === false) {       // 没有换行符，无法得知包长，返回 0 继续等待数据
+          return 0;
+      }
+
+      return $pos+1;
+  }
+
+  public static function encode($buffer)
+  {
+      // json 序列化，并加上换行符作为请求结束的标记
+      return json_encode($buffer)."\n";
+  }
+
+  public static function decode($buffer)
+  {
+      // 去掉换行，还原成数组
+      return json_decode(trim($buffer), true);
+  }
+  #+END_SRC
+
+  JsonRPC
+  #+BEGIN_SRC php -r
+  $worker->onMessage = function(ConnectionInterface $connection, $data) {
+      $class = $data['class'];
+      $method = $data['method'];
+      $param_array = $data['param_array'];
+
+      // ...
+      $include_file = __DIR__ . "/Services/$class.php";
+      require_once $include_file;
+
+      $ret = call_user_func_array([$class, $method], $param_array);
+  }
+  #+END_SRC
+
+  客户端测试
+  #+BEGIN_SRC php -r
+  class JsonRPCTest extends TestCase
+  {
+      protected $socket;
+      protected $client_socket;
+      protected $conn;
+      protected $errno;
+
+      protected $address = "0.0.0.0";
+      protected $port = "2015";
+
+      protected function setUp()
+      {
+          $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+          $this->client_socket = socket_connect($this->socket, $this->address, $this->port);
+          $this->errno = socket_last_error($this->socket);
+      }
+
+      public function test_send()
+      {
+          $this->assertEquals($this->errno, 0);
+
+          $blog_id = 1;
+          $arr = [
+              'class' => 'Blog',
+              'method' => 'getByBlogId',
+              'param_array' => [$blog_id]
+          ];
+          $buff = json_encode($arr) . "\n";
+
+          socket_write($this->socket, $buff, strlen($buff));
+          $recv = socket_read($this->socket, 65535);
+          //$arr = RpcClient::instance('Blog')->getBlo(1);
+
+          $res = ['blog_id'    => $blog_id,
+                  'title'=> 'workerman is a high performance RPC server framework for network applications implemented in PHP using libevent',
+                  'content'   => 'this is content ...'];
+          $this->assertEquals($res, json_decode($recv, 1)['data']);
+      }
+
+      protected function tearDown()
+      {
+          socket_close($this->socket);
+      }
+  }
+  #+END_SRC
+
+* workerman ThriftRPC 解读
+  #+BEGIN_SRC php -r
+  $worker = new ThriftWorker('tcp://0.0.0.0:9090');
+  $worker->class = 'HelloWorld';
+  #+END_SRC
+
+  ThriftRpc/ThriftWorker.php
+  #+BEGIN_SRC php -r
+  <?php
+
+  class ThriftWorker extends Worker
+  {
+      /**
+       * Thrift processor
+       * @var object
+       */
+      protected $processor = null;
+
+      /**
+       * 使用的协议,默认 TBinaryProtocol,可更改
+       * @var string
+       */
+      public $thriftProtocol = 'TBinaryProtocol';
+
+      /**
+       * 使用的传输类,默认是 TBufferedTransport，可更改
+       * @var string
+       */
+      public $thriftTransport = 'TBufferedTransport';
+
+
+      public function __construct($socket_name)
+      {
+          parent::__construct($socket_name);
+          $this->onWorkerStart = array($this, 'onStart');
+          $this->onConnect = array($this, 'onConnect');
+      }
+
+      public function onStart()
+      {
+          // ...
+
+          // 载入该服务下的所有文件
+          foreach(glob(THRIFT_ROOT . '/Services/'.$this->class.'/*.php') as $php_file) {
+              require_once $php_file;
+          }
+
+          // 检查类是否存在
+          $processor_class_name = "\\Services\\".$this->class."\\".$this->class.'Processor';
+          if(!class_exists($processor_class_name)) {
+              ThriftWorker::log("Class $processor_class_name not found" );
+              return;
+          }
+
+          // 检查类是否存在
+          $handler_class_name ="\\Services\\".$this->class."\\".$this->class.'Handler';
+          if(!class_exists($handler_class_name)) {
+              ThriftWorker::log("Class $handler_class_name not found" );
+              return;
+          }
+
+          $handler = new $handler_class_name();
+          $this->processor = new $processor_class_name($handler);
+      }
+
+      public function onConnect($connection)
+      {
+          $socket = $connection->getSocket();
+          $t_socket = new Thrift\Transport\TSocket($connection->getRemoteIp(), $connection->getRemotePort());
+          $t_socket->setHandle($socket);
+          $transport_name = '\\Thrift\\Transport\\'.$this->thriftTransport;
+          $transport = new $transport_name($t_socket);
+          $protocol_name = '\\Thrift\\Protocol\\' . $this->thriftProtocol;
+          $protocol = new $protocol_name($transport);
+
+          // 执行处理
+          try {
+              // 先初始化一个
+              $protocol->fname = 'none';
+
+              // 业务处理
+              $this->processor->process($protocol, $protocol);
+          } catch(\Exception $e) {
+              // ...
+              $connection->send($e->getMessage());
+          }
+
+      }
+
+  }
+  #+END_SRC
+
+

@@ -1,16 +1,10 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: sunx
- * Date: 2018/6/3
- * Time: 22:08
- */
 
 use PHPUnit\Framework\TestCase;
 use SimpleWorkerman\Connection\TcpConnection;
 use SimpleWorkerman\Worker;
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../../vendor/autoload.php';
 
 class TextProtocolTest extends TestCase
 {
@@ -21,6 +15,27 @@ class TextProtocolTest extends TestCase
 
     protected $address = "0.0.0.0";
     protected $port = "9999";
+
+    protected $errmsg = <<< 'EOF'
+将下面的内容添加到 start.php 中
+    
+```    
+<?php
+
+use SimpleWorkerman\Worker;
+use SimpleWorkerman\Connection\ConnectionInterface;
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+$worker = new Worker('text://0.0.0.0:9999');
+$worker->onMessage = function (ConnectionInterface $connection, $data) {
+    $connection->send($data);
+};
+$worker->run();
+```
+
+然后运行 php start.php start
+EOF;
 
     protected function setUp()
     {

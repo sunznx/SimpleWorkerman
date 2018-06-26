@@ -32,13 +32,12 @@ class SelectEventLoop implements EventLoopInterface
             stream_select($read, $write, $except, 60);
             foreach ($read as $index => $socket) {
                 if ($socket == $worker->main_socket) {
-                    $new_conn_socket = stream_socket_accept($worker->main_socket);
+                    $new_conn_socket = stream_socket_accept($worker->main_socket, 0, $remote_address);
                     if ( !$new_conn_socket) {
                         continue;
                     }
 
-                    socket_set_nonblock($new_conn_socket);
-                    $conn = new TcpConnection($new_conn_socket, $worker);
+                    $conn = new TcpConnection($new_conn_socket, $worker, $remote_address);
                     if ($worker->onConnect) {
                         call_user_func_array($worker->onConnect, [$conn]);
                     }

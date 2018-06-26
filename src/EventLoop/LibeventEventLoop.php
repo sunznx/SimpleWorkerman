@@ -5,13 +5,14 @@ namespace SimpleWorkerman\EventLoop;
 use Event;
 use EventBase;
 use EventConfig;
+use Phalcon\Events\EventInterface;
 use SimpleWorkerman\Connection\TcpConnection;
 use SimpleWorkerman\Worker;
 
 class LibeventEventLoop implements EventLoopInterface
 {
     /**
-     * @var Event[]
+     * @var Event[][]
      */
     protected $events = [];
 
@@ -23,49 +24,87 @@ class LibeventEventLoop implements EventLoopInterface
     /**
      * @var EventBase
      */
-    protected $event_base;
+    public $event_base;
 
-    public function add($socket, callable $cb)
+    public function add($socket, $event_type, callable $cb)
     {
-        $event = new Event($this->event_base, $socket, Event::READ | Event::PERSIST, $cb);
-        $this->events[(int)$socket] = $event;
+        $type = self::getEventFromType($event_type);
+        $event = new Event($this->event_base, $socket, $type, $cb);
+        $this->events[(int)$socket][$event_type] = $event;
         $event->add();
     }
 
-    public function del($socket)
+    public function addTimer($sec, callable $cb, $persist = true)
     {
-        $this->events[(int)$socket]->del();
-        unset($this->events[(int)$socket]);
+        $event_type = EventLoopInterface::EV_TIMER;
+        $type = self::getEventFromType($event_type, $persist);
+        $event = new Event($this->event_base, -1, $type, $cb);
+        $event->addTimer($sec);
+        return $event;
+    }
+
+    public static function getEventFromType($event_type, $persist = true)
+    {
+        $ret = 0;
+
+        if ($event_type & EventLoopInterface::EV_READ) {
+            $ret |= Event::READ;
+        }
+        if ($event_type & EventLoopInterface::EV_WRITE) {
+            $ret |= Event::WRITE;
+        }
+        if ($event_type & EventLoopInterface::EV_TIMER) {
+            $ret |= Event::TIMEOUT;
+        }
+        if ($event_type & EventLoopInterface::EV_SIGNAL) {
+            $ret |= Event::SIGNAL;
+        }
+
+        if ($persist) {
+            $ret |= Event::PERSIST;
+        }
+
+        return $ret;
+    }
+
+    public function del($socket, $event_type)
+    {
+        if (isset($this->events[(int)$socket][$event_type])) {
+            $this->events[(int)$socket][$event_type]->del();
+            unset($this->events[(int)$socket][$event_type]);
+        }
+        if (empty($this->events[(int)$socket])) {
+            unset($this->events[(int)$socket]);
+        }
+    }
+
+    public function prepare()
+    {
+        $this->event_config = new EventConfig();
+        $this->event_base = new EventBase($this->event_config);
     }
 
     public function run(Worker $worker)
     {
-        $this->event_config = new EventConfig();
-        $this->event_base = new EventBase($this->event_config);;
-
-        $this->add($worker->main_socket, function ($socket) use ($worker) {
-            $new_conn_socket = stream_socket_accept($socket);
+        $this->add($worker->main_socket, EventLoopInterface::EV_READ, function ($socket) use ($worker) {
+            $new_conn_socket = stream_socket_accept($socket, 0, $remote_address);
             if ( !$new_conn_socket) {
                 return;
             }
 
-            socket_set_nonblock($new_conn_socket);
-            $conn = new TcpConnection($new_conn_socket, $worker);
+            stream_set_blocking($new_conn_socket, false);
+            $conn = new TcpConnection($new_conn_socket, $worker, $remote_address);
             if ($worker->onConnect) {
                 call_user_func_array($worker->onConnect, [$conn]);
             }
 
-            $this->add($new_conn_socket, function ($socket) {
+            $this->add($new_conn_socket, EventLoopInterface::EV_READ, function ($socket) {
                 $conn = Worker::$connections[(int)$socket];
                 $conn->recv();
             });
         });
 
-        $this->event_base->loop();
-    }
-
-    public function stop(Worker $worker)
-    {
-
+        $this->event_base->dispatch();
+        exit(250);
     }
 }

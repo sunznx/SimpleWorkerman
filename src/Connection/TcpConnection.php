@@ -2,6 +2,8 @@
 
 namespace SimpleWorkerman\Connection;
 
+use Phalcon\Events\EventInterface;
+use SimpleWorkerman\EventLoop\EventLoopInterface;
 use SimpleWorkerman\EventLoop\LibeventEventLoop;
 use SimpleWorkerman\Protocol\ProtocolInterface;
 use SimpleWorkerman\Worker;
@@ -9,6 +11,8 @@ use SimpleWorkerman\Worker;
 class TcpConnection implements ConnectionInterface
 {
     public $recv_buff;
+    public $send_buff;
+
     public $parsed_len = 0;     // for parser only
 
     const MAX_PACKAGE_SIZE = 10485760;
@@ -18,15 +22,23 @@ class TcpConnection implements ConnectionInterface
 
     protected $socket;
 
+    protected $remote_address;
+
+    protected $conn_status;
+
+    public $bufferFull = false;
+
     /**
      * @var Worker
      */
     protected $worker;
 
-    public function __construct($socket, Worker $worker)
+    public function __construct($socket, Worker $worker, $remote_address)
     {
         $this->socket = $socket;
         $this->worker = $worker;
+        $this->remote_address = $remote_address;
+        $this->conn_status = self::CONN_CONNECTED;
         Worker::$allSockets[(int)$this->socket] = $this->socket;
         Worker::$connections[(int)$this->socket] = $this;
     }
@@ -58,33 +70,70 @@ class TcpConnection implements ConnectionInterface
         $this->recv_buff = '';
     }
 
-    public function send($buff, $raw = false)
+    public function baseWrite()
+    {
+        $len = fwrite($this->socket, $this->send_buff, 8192);
+        if ($len < 0) {  // error
+            $this->destroy();
+            return;
+        }
+
+        if ($len == strlen($this->send_buff)) {
+            if ($this->conn_status == self::CONN_CLOSING) {
+                $this->destroy();
+                return;
+            } else {
+                Worker::$event_loop->del($this->socket, EventLoopInterface::EV_WRITE);
+            }
+        }
+
+        $this->send_buff = substr($this->send_buff, $len);
+    }
+
+    public function send($buff, $is_raw = false)
     {
         $parser = $this->worker->parser;
-        if (false === $raw && $parser !== null) {
+        if (false === $is_raw && $parser !== null) {
             $buff = $parser::encode($buff, $this);
         }
-        fwrite($this->socket, $buff);
+
+        if (empty($this->send_buff)) {
+            Worker::$event_loop->add($this->socket, EventLoopInterface::EV_WRITE, [$this, 'baseWrite']);
+        }
+        $this->send_buff .= $buff;
     }
 
-    public function close()
+    public function close($buff = "")
     {
-        fclose($this->socket);
+        if ($this->conn_status == self::CONN_CLOSED || $this->conn_status == self::CONN_CLOSING) {
+            return;
+        }
+
+        if ( !empty($buff)) {
+            $this->send($buff);
+        }
+        $this->conn_status = self::CONN_CLOSING;
+        if (empty($this->send_buff)) {
+            $this->destroy();
+        }
+    }
+
+    public function destroy()
+    {
+        if ($this->conn_status == self::CONN_CLOSED) {
+            return;
+        }
+
+
         $this->recv_buff = "";
-        Worker::$event_loop->del($this->socket);
+        $this->send_buff = "";
+        Worker::$event_loop->del($this->socket, EventLoopInterface::EV_READ);
+        Worker::$event_loop->del($this->socket, EventLoopInterface::EV_WRITE);
+        fclose($this->socket);
+
+        $this->conn_status = self::CONN_CLOSED;
         unset(Worker::$allSockets[(int)$this->socket]);
         unset(Worker::$connections[(int)$this->socket]);
-    }
-
-    public static function broadcast(TcpConnection $from, $buff)
-    {
-        foreach (Worker::$connections as $to) {
-            if ($from === $to) {
-                continue;
-            }
-
-            $to->send($buff);
-        }
     }
 
     protected function parserHandler()
@@ -114,6 +163,16 @@ class TcpConnection implements ConnectionInterface
             $decode_buff = $parser::decode($one_request_buffer, $this);
             call_user_func_array($this->worker->onMessage, [$this, $decode_buff]);
         }
+    }
+
+    public function getRemoteIp()
+    {
+        return explode(':', $this->remote_address)[0];
+    }
+
+    public function getRemotePort()
+    {
+        return explode(':', $this->remote_address)[1];
     }
 }
 

@@ -4,6 +4,7 @@ namespace SimpleWorkerman\Protocol;
 
 use SimpleWorkerman\Connection\ConnectionInterface;
 use SimpleWorkerman\Connection\TcpConnection;
+use SimpleWorkerman\Worker;
 
 class Http implements ProtocolInterface
 {
@@ -30,54 +31,52 @@ class Http implements ProtocolInterface
 
         if (in_array($method, static::$allow_methods)) {
             return static::getRequestSize($header, $method);
-        } else {
-            $connection->send("HTTP/1.1 400 Bad Request\r\n\r\n", true);
-            return 0;
         }
+
+        $connection->send("HTTP/1.1 400 Bad Request\r\n\r\n", true);
+        $connection->close();
+        return 0;
     }
 
-    /**
-     * Get whole size of the request
-     * includes the request headers and request body.
-     * @param string $header The request headers
-     * @param string $method The request method
-     * @return integer
-     */
     protected static function getRequestSize($header, $method)
     {
         if ($method === 'GET' || $method === 'OPTIONS' || $method === 'HEAD') {
             return strlen($header) + 4;
         }
+
         $match = array();
         if (preg_match("/\r\nContent-Length: ?(\d+)/i", $header, $match)) {
             $content_length = isset($match[1]) ? $match[1] : 0;
             return $content_length + strlen($header) + 4;
         }
+
         return 0;
     }
 
     /**
      * Parse $_POST、$_GET、$_COOKIE.
      *
-     * @param string        $recv_buffer
-     * @param TcpConnection $connection
+     * @param string              $recv_buffer
+     * @param ConnectionInterface $connection
      * @return array
      */
-    public static function decode($recv_buffer, TcpConnection $connection)
+    public static function decode($recv_buffer, ConnectionInterface $connection)
     {
         // Init.
         $_POST = $_GET = $_COOKIE = $_REQUEST = $_SESSION = $_FILES = array();
         $GLOBALS['HTTP_RAW_POST_DATA'] = '';
+
         // Clear cache.
         HttpCache::$header = array('Connection' => 'Connection: keep-alive');
         HttpCache::$instance = new HttpCache();
+
         // $_SERVER
         $_SERVER = array(
             'QUERY_STRING'         => '',
             'REQUEST_METHOD'       => '',
             'REQUEST_URI'          => '',
             'SERVER_PROTOCOL'      => '',
-            'SERVER_SOFTWARE'      => 'workerman/' . Worker::VERSION,
+            'SERVER_SOFTWARE'      => 'simpleworkerman/' . Worker::VERSION,
             'SERVER_NAME'          => '',
             'HTTP_HOST'            => '',
             'HTTP_USER_AGENT'      => '',
@@ -96,8 +95,7 @@ class Http implements ProtocolInterface
         list($http_header, $http_body) = explode("\r\n\r\n", $recv_buffer, 2);
         $header_data = explode("\r\n", $http_header);
 
-        list($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI'], $_SERVER['SERVER_PROTOCOL']) = explode(' ',
-            $header_data[0]);
+        list($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI'], $_SERVER['SERVER_PROTOCOL']) = explode(' ', $header_data[0]);
 
         $http_post_boundary = '';
         unset($header_data[0]);
@@ -106,6 +104,7 @@ class Http implements ProtocolInterface
             if (empty($content)) {
                 continue;
             }
+
             list($key, $value) = explode(':', $content, 2);
             $key = str_replace('-', '_', strtoupper($key));
             $value = trim($value);
@@ -155,15 +154,12 @@ class Http implements ProtocolInterface
                 case 'application/x-www-form-urlencoded':
                     parse_str($http_body, $_POST);
                     break;
-                case 'application/json':
-                    $_POST = json_decode($http_body, true);
-                    break;
                 }
             }
         }
 
         // Parse other HTTP action parameters
-        if ($_SERVER['REQUEST_METHOD'] != 'GET' && $_SERVER['REQUEST_METHOD'] != "POST") {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== "POST") {
             $data = array();
             if ($_SERVER['CONTENT_TYPE'] === "application/x-www-form-urlencoded") {
                 parse_str($http_body, $data);
@@ -198,11 +194,11 @@ class Http implements ProtocolInterface
     /**
      * Http encode.
      *
-     * @param string        $content
-     * @param TcpConnection $connection
+     * @param string              $content
+     * @param ConnectionInterface $connection
      * @return string
      */
-    public static function encode($content, TcpConnection $connection)
+    public static function encode($content, ConnectionInterface $connection)
     {
         // Default http-code.
         if ( !isset(HttpCache::$header['Http-Code'])) {
@@ -380,16 +376,16 @@ class Http implements ProtocolInterface
      *
      * @return void
      */
-    public static function sessionSavePath($path = null)
-    {
-        if (PHP_SAPI != 'cli') {
-            return $path ? session_save_path($path) : session_save_path();
-        }
-        if ($path && is_dir($path) && is_writable($path) && !static::sessionStarted()) {
-            HttpCache::$sessionPath = $path;
-        }
-        return HttpCache::$sessionPath;
-    }
+    //public static function sessionSavePath($path = null)
+    //{
+    //    if (PHP_SAPI != 'cli') {
+    //        return $path ? session_save_path($path) : session_save_path();
+    //    }
+    //    if ($path && is_dir($path) && is_writable($path) && !static::sessionStarted()) {
+    //        HttpCache::$sessionPath = $path;
+    //    }
+    //    return HttpCache::$sessionPath;
+    //}
 
     /**
      * sessionStarted
