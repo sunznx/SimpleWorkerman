@@ -40,6 +40,9 @@
 - [x] http 协议的 close 有问题，会有 time-wait，主要是 keep-alive 实现得有问题 (暂时先这样，能跑起来就好了)<br>
   [2018-06-24] time wait 问题是正常的，因为测试的时候 client 也是本机，tcp 协议中先发送 close 的一方会主动进入 time wait 状态<br>
 
+- [x] log<br>
+  [2018-06-27] 完成<br>
+
 - [x] 多 worker 支持<br>
   [2018-06-24] (不支持 mac [mac 上的 event 扩展有 bug])<br>
   [2018-06-25] 该 bug 是 libevent 在多进程环境下的问题，需要了解多进程怎么搞 reactor<br>
@@ -47,7 +50,6 @@
 
 - [ ] signal<br>
 - [ ] 异步任务<br>
-- [ ] log<br>
 - [ ] protocol 解析有问题，解析不完整的协议包的时候，连接还是保持着，这里应该有个超时断开，workerman 的 http keep-alive 没有 timeout 的机制<br>
 - [ ] redis 协议<br>
 - [ ] buffer 优化，buffer 满，buffer 空<br>
