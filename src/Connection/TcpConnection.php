@@ -139,29 +139,31 @@ class TcpConnection implements ConnectionInterface
     protected function parserHandler()
     {
         $parser = $this->worker->parser;
-        $this->parsed_len = $parser::input($this->recv_buff, $this);
-        if ($this->parsed_len <= 0) {  // 不是一个完整的包，下次继续
-            return;
-        }
+        while (1) {
+            $this->parsed_len = $parser::input($this->recv_buff, $this);
+            if ($this->parsed_len <= 0) {  // 不是一个完整的包，下次继续
+                return;
+            }
 
-        $recv_len = strlen($this->recv_buff);
-        if ($this->parsed_len > self::MAX_PACKAGE_SIZE) {
-            echo "error package: package_len={$recv_len} is too large";
-            $this->close();
-            return;
-        }
+            $recv_len = strlen($this->recv_buff);
+            if ($this->parsed_len > self::MAX_PACKAGE_SIZE) {
+                echo "error package: package_len={$recv_len} is too large";
+                $this->close();
+                return;
+            }
 
-        if ($this->parsed_len > strlen($this->recv_buff)) { // parser error
-            echo "error package: parser_len={$this->parsed_len}, package_len={$recv_len}";
-            $this->close();
-            return;
-        }
+            if ($this->parsed_len > strlen($this->recv_buff)) { // parser error
+                echo "error package: parser_len={$this->parsed_len}, package_len={$recv_len}";
+                $this->close();
+                return;
+            }
 
-        $one_request_buffer = substr($this->recv_buff, 0, $this->parsed_len);
-        $this->recv_buff = substr($this->recv_buff, $this->parsed_len);
-        if ($this->worker->onMessage) {
-            $decode_buff = $parser::decode($one_request_buffer, $this);
-            call_user_func_array($this->worker->onMessage, [$this, $decode_buff]);
+            $one_request_buffer = substr($this->recv_buff, 0, $this->parsed_len);
+            $this->recv_buff = substr($this->recv_buff, $this->parsed_len);
+            if ($this->worker->onMessage) {
+                $decode_buff = $parser::decode($one_request_buffer, $this);
+                call_user_func_array($this->worker->onMessage, [$this, $decode_buff]);
+            }
         }
     }
 

@@ -14,7 +14,7 @@ $worker->onWorkerStart = function (Worker $worker) {
 };
 
 $worker->onMessage = function (TcpConnection $connection, $data) {
-    $connection->send($data);
+    $connection->send($data . "aaaaaaaaaaaa");
 };
 
 $worker->runAll();
