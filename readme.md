@@ -21,6 +21,7 @@
 
 - [x] http 基本协议解析 (这部分现在直接抄的 workerman)<br>
   [2018-06-09] 完成<br>
+  [2018-08-22] [workerman-http.org](https://github.com/sunznx/SimpleWorkerman/blob/master/workerman-http.org)<br>
 
 - [x] http keep alive<br>
   [2018-06-09] 完成<br>
@@ -47,6 +48,10 @@
   [2018-06-24] (不支持 mac [mac 上的 event 扩展有 bug])<br>
   [2018-06-25] 该 bug 是 libevent 在多进程环境下的问题，需要了解多进程怎么搞 reactor<br>
   [2018-06-26] 解决的方法是：libevent 的 event_base 在 fork 之后创建，这样每个 worker 进程维护一个 libevent event_base 实例<br>
+  [2018-08-22] workerman 里面的解决方法是 master 也 listen 了，但是 fork 出来的 worker 要将其他 worker unlisten 一次。这样的好处是即使 worker 全挂了（一般不会这样），master 还在提供 listen 服务
+
+- [x] 异步 tcp connection<br>
+  [2018-08-22] [workerman-async-tcpconnection.org](https://github.com/sunznx/SimpleWorkerman/blob/master/workerman-async-tcpconnection.org)<br>
 
 - [ ] signal<br>
 - [ ] 异步任务<br>

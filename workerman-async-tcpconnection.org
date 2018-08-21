@@ -1,0 +1,71 @@
+* workerman 异步 TcpConnection 的实现
+  这个可以参考 《unix 网路编程》的 =16.3 节：非阻塞 connect=
+  异步 connection 如果在 connect 的时候返回 0，那么表示连接立即连上了。如果返回的值不是 0，那么有可能是出错了，只有一种情况下是正常的， =errno=EINPROGRESS= 的时候，当 errno 值是 EINPROGRESS 的时候，就要检查连接什么时候生效了。检查的原理是：
+  如果 tcp 连接上了或者是正在连接中，那么该 client socket 可写的（连接出错的时候是 =可读且可写= 的），我们只要监听该 socket 的可写事件再判断是否是连接出错。判断连接是否有效 《unix 网路编程》 里面也提出了下面几种方法：
+  1. 使用 getsocketopt 的 SO_ERROR 选项来获取 socket 错误
+     : getsocketopt(client_fd, SOL_SOCKET, SO_ERROR, &error, &len)
+
+  2. 使用 getpeername，那么错误是 =ENOTCONN= 就是没连接上
+
+  3. 用长度值为 0 的 read 调用测试该连接有没有效。如果连接上了，read 返回 0；连接不上，read 会返回对应错误码
+     : read(client, 0)
+
+  4. 再调用一次 connect，如果失败，错误是 =EISCONN=
+
+  #+BEGIN_SRC php -r
+  $this->_socket = stream_socket_client(
+      "tcp://{$this->_remoteHost}:{$this->_remotePort}",
+      $errno,
+      $errstr,
+      0,
+      STREAM_CLIENT_ASYNC_CONNECT,
+      $context
+  );
+  #+END_SRC
+
+  首先设置一个 =STREAM_CLIENT_ASYNC_CONNECT= 的 client socket，然后会设置将该 socket 添加到文件描述符的监听中
+  : Worker::$globalEvent->add($this->_socket, EventInterface::EV_WRITE, array($this, 'checkConnection'));
+
+  如果 tcp 连接上了或者是正在连接中，就会调用 =checkConnection= 来检查 client 是否真的连接上了。 =checkConnection= 里面会调用 =stream_socket_get_name= 来判断该连接是否有效。
+
+  下面是 php 的一些源码，php 会在底层帮我们处理好了 =EINPROGRESS=
+  #+BEGIN_SRC c -r
+  int php_network_connect_socket(php_socket_t sockfd, const struct sockaddr *addr, socklen_t addrlen, int asynchronous, struct timeval *timeout, zend_string **error_string, int *error_code)
+  {
+  #if HAVE_NON_BLOCKING_CONNECT
+      php_non_blocking_flags_t orig_flags;
+      int n;
+      int error = 0;
+      socklen_t len;
+      int ret = 0;
+
+      SET_SOCKET_BLOCKING_MODE(sockfd, orig_flags);
+
+      if ((n = connect(sockfd, addr, addrlen)) != 0) {
+          error = php_socket_errno();
+
+          if (error_code) {
+              *error_code = error;
+          }
+
+          if (error != EINPROGRESS) {
+              if (error_string) {
+                  *error_string = php_socket_error_str(error);
+              }
+
+              return -1;
+          }
+          if (asynchronous && error == EINPROGRESS) {
+              /* this is fine by us */
+              return 0;
+          }
+      }
+
+      ...
+  }
+
+  #+END_SRC
+
+
+
+
