@@ -10,6 +10,8 @@
 
   4. 再调用一次 connect，如果失败，错误是 =EISCONN=
 
+
+  再来是看看，workerman 是怎么做的：
   #+BEGIN_SRC php -r
   $this->_socket = stream_socket_client(
       "tcp://{$this->_remoteHost}:{$this->_remotePort}",
@@ -21,7 +23,6 @@
   );
   #+END_SRC
 
-  再来是看看，workerman 是怎么做的：
   首先设置一个 =STREAM_CLIENT_ASYNC_CONNECT= 的 client socket，然后会设置将该 socket 添加到文件描述符的监听中
   : Worker::$globalEvent->add($this->_socket, EventInterface::EV_WRITE, array($this, 'checkConnection'));
 
