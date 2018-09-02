@@ -1,6 +1,6 @@
 <?php
 
-namespace SimpleWorkerman\RPC\Model;
+namespace Sunznx\SimpleWorkerman\RPC\Model;
 
 class User
 {

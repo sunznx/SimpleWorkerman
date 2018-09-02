@@ -54,6 +54,7 @@
   [2018-08-22] [workerman-async-tcpconnection.org](https://github.com/sunznx/SimpleWorkerman/blob/master/workerman-async-tcpconnection.org)<br>
 
 - [ ] signal<br>
+- [ ] reload restart stop<br>
 - [ ] 异步任务<br>
 - [ ] protocol 解析有问题，解析不完整的协议包的时候，连接还是保持着，这里应该有个超时断开，workerman 的 http keep-alive 没有 timeout 的机制<br>
 - [ ] redis 协议<br>

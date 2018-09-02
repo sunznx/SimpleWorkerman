@@ -1,9 +1,9 @@
 <?php
 
-namespace SimpleWorkerman\Protocol;
+namespace Sunznx\SimpleWorkerman\Protocol;
 
-use SimpleWorkerman\Connection\ConnectionInterface;
-use SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
 
 class Json implements ProtocolInterface
 {

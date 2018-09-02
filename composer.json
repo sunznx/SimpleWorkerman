@@ -1,11 +1,18 @@
 {
-  "autoload": {
-    "psr-4": {
-      "SimpleWorkerman\\": "src/"
+  "name": "sunznx/simple-workerman",
+  "authors": [
+    {
+      "name": "sunznx",
+      "email": "sunznx@163.com"
     }
-  },
+  ],
   "require": {
     "phpunit/phpunit": "^6.5",
     "monolog/monolog": "^1.23"
+  },
+  "autoload": {
+    "psr-4": {
+      "Sunznx\\SimpleWorkerman\\": "src/"
+    }
   }
 }

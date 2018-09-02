@@ -1,8 +1,8 @@
 <?php
 
-namespace SimpleWorkerman\Protocol;
+namespace Sunznx\SimpleWorkerman\Protocol;
 
-use SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
 
 interface ProtocolInterface
 {

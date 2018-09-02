@@ -1,6 +1,6 @@
 <?php
 
-namespace SimpleWorkerman\Timer;
+namespace Sunznx\SimpleWorkerman\Timer;
 
 interface TimerInterface
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace SimpleWorkerman\Protocol\Redis;
+namespace Sunznx\SimpleWorkerman\Protocol\Redis;
 
 class RedisResp
 {

@@ -1,12 +1,12 @@
 <?php
 
-namespace SimpleWorkerman\Connection;
+namespace Sunznx\SimpleWorkerman\Connection;
 
 use Phalcon\Events\EventInterface;
-use SimpleWorkerman\EventLoop\EventLoopInterface;
-use SimpleWorkerman\EventLoop\LibeventEventLoop;
-use SimpleWorkerman\Protocol\ProtocolInterface;
-use SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\EventLoop\EventLoopInterface;
+use Sunznx\SimpleWorkerman\EventLoop\LibeventEventLoop;
+use Sunznx\SimpleWorkerman\Protocol\ProtocolInterface;
+use Sunznx\SimpleWorkerman\Worker;
 
 class TcpConnection implements ConnectionInterface
 {

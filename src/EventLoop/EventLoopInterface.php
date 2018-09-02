@@ -1,8 +1,8 @@
 <?php
 
-namespace SimpleWorkerman\EventLoop;
+namespace Sunznx\SimpleWorkerman\EventLoop;
 
-use SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\Worker;
 
 interface EventLoopInterface
 {

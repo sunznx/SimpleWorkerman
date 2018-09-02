@@ -1,10 +1,10 @@
 <?php
 
-namespace SimpleWorkerman\Protocol;
+namespace Sunznx\SimpleWorkerman\Protocol;
 
-use SimpleWorkerman\Connection\ConnectionInterface;
-use SimpleWorkerman\Connection\TcpConnection;
-use SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\Worker;
 
 class Http implements ProtocolInterface
 {

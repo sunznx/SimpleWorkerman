@@ -1,10 +1,10 @@
 <?php
 
-namespace SimpleWorkerman\Timer;
+namespace Sunznx\SimpleWorkerman\Timer;
 
 use Event;
-use SimpleWorkerman\EventLoop\LibeventEventLoop;
-use SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\EventLoop\LibeventEventLoop;
+use Sunznx\SimpleWorkerman\Worker;
 
 class Timer implements TimerInterface
 {

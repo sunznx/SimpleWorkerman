@@ -1,5 +1,5 @@
 <?php
-use SimpleWorkerman\WebServer;
+use Sunznx\SimpleWorkerman\WebServer;
 
 require_once __DIR__ . '/vendor/autoload.php';
 

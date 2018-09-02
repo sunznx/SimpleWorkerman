@@ -1,9 +1,9 @@
 <?php
 
-use SimpleWorkerman\Connection\TcpConnection;
-use SimpleWorkerman\Timer\Timer;
-use SimpleWorkerman\Worker;
-use SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\Timer\Timer;
+use Sunznx\SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
 
 require_once __DIR__ . '/vendor/autoload.php';
 

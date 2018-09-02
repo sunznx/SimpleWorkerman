@@ -1,7 +1,7 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use SimpleWorkerman\Protocol\Redis\RedisResp;
+use Sunznx\SimpleWorkerman\Protocol\Redis\RedisResp;
 
 class RedisProtocolTest extends TestCase
 {

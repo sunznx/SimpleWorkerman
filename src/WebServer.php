@@ -1,10 +1,10 @@
 <?php
 
-namespace SimpleWorkerman;
+namespace Sunznx\SimpleWorkerman;
 
-use SimpleWorkerman\Connection\ConnectionInterface;
-use SimpleWorkerman\Connection\TcpConnection;
-use SimpleWorkerman\Protocol\Http;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\Protocol\Http;
 
 class WebServer extends Worker
 {

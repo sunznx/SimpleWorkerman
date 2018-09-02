@@ -1,10 +1,10 @@
 <?php
 
-namespace SimpleWorkerman\Protocol;
+namespace Sunznx\SimpleWorkerman\Protocol;
 
-use SimpleWorkerman\Connection\ConnectionInterface;
-use SimpleWorkerman\Connection\TcpConnection;
-use SimpleWorkerman\Protocol\Redis\RedisResp;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\Protocol\Redis\RedisResp;
 
 class Redis implements ProtocolInterface
 {

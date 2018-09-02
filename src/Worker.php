@@ -1,13 +1,13 @@
 <?php
 
-namespace SimpleWorkerman;
+namespace Sunznx\SimpleWorkerman;
 
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-use SimpleWorkerman\Connection\TcpConnection;
-use SimpleWorkerman\EventLoop\LibeventEventLoop;
-use SimpleWorkerman\Protocol\ProtocolInterface;
-use SimpleWorkerman\Timer\Timer;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\EventLoop\LibeventEventLoop;
+use Sunznx\SimpleWorkerman\Protocol\ProtocolInterface;
+use Sunznx\SimpleWorkerman\Timer\Timer;
 
 class Worker
 {
@@ -79,9 +79,9 @@ class Worker
     public $worker_id;
 
     /**
-     * @var int[]
+     * @var WorkerChild[]
      */
-    public $childs;
+    public static $childs;
 
     public function __construct($address)
     {
@@ -92,7 +92,7 @@ class Worker
             if (in_array($protocol, static::$_builtinTransports)) {
                 $this->protocol = "tcp";
             } else {
-                $this->parser = '\\SimpleWorkerman\\Protocol\\' . ucfirst($protocol);
+                $this->parser = '\\Sunznx\\SimpleWorkerman\\Protocol\\' . ucfirst($protocol);
                 if ( !class_exists($this->parser)) {
                     echo "class {$this->parser} not found" . PHP_EOL;
                     exit(250);
@@ -148,7 +148,7 @@ class Worker
             $worker->run();
             exit(0);
         } else {                  // parent
-            $worker->childs[$id] = new WorkerChild($id, $worker->worker_id, $pid, $worker);
+            static::$childs[$id] = new WorkerChild($id, $worker->worker_id, $pid, $worker);
         }
     }
 
@@ -222,15 +222,12 @@ class Worker
             // If a child has already exited.
             if ($pid > 0) {
                 // Find out witch worker process exited.
-                /**
-                 * @var WorkerChild $worker_child
-                 */
-                foreach ($worker->childs as $id => $worker_child) {
+                foreach (static::$childs as $id => $worker_child) {
                     if ($worker_child->pid == $pid) {
                         if ($status !== 0) {
                             static::log("worker[{$worker->name}:{$pid}] exit with status {$status}");
                         }
-                        unset($worker->childs[$id]);
+                        unset(static::$childs[$id]);
                         break;
                     }
                 }
@@ -305,6 +302,9 @@ class Worker
 
     public static function stopAll($graceful = true)
     {
+        foreach (static::$childs as $id => $worker_child) {
+            posix_kill($worker_child->pid, SIGINT);
+        }
     }
 
     public static function reload($graceful = true)

@@ -1,7 +1,7 @@
 <?php
 
-use SimpleWorkerman\Worker;
-use SimpleWorkerman\Connection\ConnectionInterface;
+use Sunznx\SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
 
 require_once __DIR__ . '/vendor/autoload.php';
 

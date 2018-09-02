@@ -1,6 +1,6 @@
 <?php
 
-namespace SimpleWorkerman\Connection;
+namespace Sunznx\SimpleWorkerman\Connection;
 
 interface ConnectionInterface
 {

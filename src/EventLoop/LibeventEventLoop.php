@@ -1,13 +1,12 @@
 <?php
 
-namespace SimpleWorkerman\EventLoop;
+namespace Sunznx\SimpleWorkerman\EventLoop;
 
 use Event;
 use EventBase;
 use EventConfig;
-use Phalcon\Events\EventInterface;
-use SimpleWorkerman\Connection\TcpConnection;
-use SimpleWorkerman\Worker;
+use Sunznx\SimpleWorkerman\Connection\TcpConnection;
+use Sunznx\SimpleWorkerman\Worker;
 
 class LibeventEventLoop implements EventLoopInterface
 {
