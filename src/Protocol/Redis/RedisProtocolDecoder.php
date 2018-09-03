@@ -2,7 +2,7 @@
 
 namespace Sunznx\SimpleWorkerman\Protocol\Redis;
 
-class RedisResp
+class RedisProtocolDecoder
 {
     const RESP_STRING = "+";
     const RESP_ERROR = "-";
@@ -123,51 +123,5 @@ class RedisResp
 
         $this->response = $response;
         return $total;
-    }
-
-    public static function replyString($buffer)
-    {
-        return self::RESP_STRING . $buffer . self::CRLF;
-    }
-
-    public static function replyError($buffer)
-    {
-        return self::RESP_ERROR . $buffer . self::CRLF;
-    }
-
-    public static function replyInteger($buffer)
-    {
-        return self::RESP_INTEGER . $buffer . self::CRLF;
-    }
-
-    public static function replyBulkString($buffer)
-    {
-        if ($buffer === null) {
-            return self::RESP_BULK_STRING . -1 . self::CRLF;
-        }
-
-        return self::RESP_BULK_STRING . strlen($buffer) . self::CRLF . $buffer . self::CRLF;
-    }
-
-    public static function replyArray($buffer)
-    {
-        $res = self::RESP_ARRAY;
-
-        if ($buffer === null) {
-            $res .= -1 . self::CRLF;
-        } else {
-            $res .= count($buffer) . self::CRLF;
-            foreach ($buffer as $item) {
-                if (is_int($item)) {
-                    $res .= self::replyInteger($item);
-                } else if ($item === null || is_float($item) || is_string($item)) {
-                    $res .= self::replyBulkString($item);
-                } else if (is_array($item) || is_object($item)) {
-                    $res .= self::replyArray($item);
-                }
-            }
-        }
-
-        return $res;
     }
 }

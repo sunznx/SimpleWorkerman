@@ -1,7 +1,8 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use Sunznx\SimpleWorkerman\Protocol\Redis\RedisResp;
+use Sunznx\SimpleWorkerman\Protocol\Redis\RedisProtocolDecoder;
+use Sunznx\SimpleWorkerman\Protocol\Redis as RedisProtocol;
 
 class RedisProtocolTest extends TestCase
 {
@@ -12,44 +13,44 @@ class RedisProtocolTest extends TestCase
 
     public function test_parse_encode()
     {
-        $res = RedisResp::replyString("abc");
+        $res = RedisProtocol::replyString("abc");
         $this->assertEquals("+abc\r\n", $res);
 
-        $res = RedisResp::replyError("abc");
+        $res = RedisProtocol::replyError("abc");
         $this->assertEquals("-abc\r\n", $res);
 
-        $res = RedisResp::replyInteger(100);
+        $res = RedisProtocol::replyInteger(100);
         $this->assertEquals(":100\r\n", $res);
 
-        $res = RedisResp::replyInteger(-100);
+        $res = RedisProtocol::replyInteger(-100);
         $this->assertEquals(":-100\r\n", $res);
 
-        $res = RedisResp::replyBulkString("abc");
+        $res = RedisProtocol::replyBulkString("abc");
         $this->assertEquals("$3\r\nabc\r\n", $res);
 
-        $res = RedisResp::replyArray([]);
+        $res = RedisProtocol::replyArray([]);
         $this->assertEquals("*0\r\n", $res);
 
-        $res = RedisResp::replyArray(null);
+        $res = RedisProtocol::replyArray(null);
         $this->assertEquals("*-1\r\n", $res);
 
-        $res = RedisResp::replyArray(['a', 'b', 'c']);
+        $res = RedisProtocol::replyArray(['a', 'b', 'c']);
         $this->assertEquals("*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n", $res);
 
-        $res = RedisResp::replyArray(['a', 2, 'c']);
+        $res = RedisProtocol::replyArray(['a', 2, 'c']);
         $this->assertEquals("*3\r\n$1\r\na\r\n:2\r\n$1\r\nc\r\n", $res);
 
-        $res = RedisResp::replyArray(['a', 2, 'c', [null]]);
+        $res = RedisProtocol::replyArray(['a', 2, 'c', [null]]);
         $this->assertEquals("*4\r\n$1\r\na\r\n:2\r\n$1\r\nc\r\n*1\r\n$-1\r\n", $res);
 
-        $res = RedisResp::replyArray(['a', 2, 'c', null]);
+        $res = RedisProtocol::replyArray(['a', 2, 'c', null]);
         $this->assertEquals("*4\r\n$1\r\na\r\n:2\r\n$1\r\nc\r\n$-1\r\n", $res);
     }
 
     public function test_parse_string()
     {
         $buffer = "+abc\r\n+abcbcd\r\n$-1\r\n*2\r\n$1\r\na\r\n$-1\r\n";
-        $resp = new RedisResp($buffer);
+        $resp = new RedisProtocolDecoder($buffer);
 
         $this->assertEquals(6, $resp->parseResp());
         $this->assertEquals("abc", $resp->response);
@@ -67,7 +68,7 @@ class RedisProtocolTest extends TestCase
     public function test_parse_bulk_string()
     {
         $buffer = "\$3\r\nabc\r\n";
-        $resp = new RedisResp($buffer);
+        $resp = new RedisProtocolDecoder($buffer);
 
         $this->assertEquals(strlen($buffer), $resp->parseResp());
         $this->assertEquals("", $resp->buffer);
@@ -77,7 +78,7 @@ class RedisProtocolTest extends TestCase
     public function test_parse_array()
     {
         $buffer = "*2\r\n$4\r\ntest\r\n*2\r\n$4\r\ntest\r\n$6\r\nsecond\r\n";
-        $resp = new RedisResp($buffer);
+        $resp = new RedisProtocolDecoder($buffer);
         $this->assertEquals(strlen($buffer), $resp->parseResp());
         var_dump($resp->response);
     }

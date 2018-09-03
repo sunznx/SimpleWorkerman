@@ -4,7 +4,7 @@ namespace Sunznx\SimpleWorkerman\Protocol;
 
 use Sunznx\SimpleWorkerman\Connection\ConnectionInterface;
 use Sunznx\SimpleWorkerman\Connection\TcpConnection;
-use Sunznx\SimpleWorkerman\Protocol\Redis\RedisResp;
+use Sunznx\SimpleWorkerman\Protocol\Redis\RedisProtocolDecoder;
 
 class Redis implements ProtocolInterface
 {
@@ -20,7 +20,7 @@ class Redis implements ProtocolInterface
             return 0;
         }
 
-        $redisResp = new RedisResp($buffer);
+        $redisResp = new RedisProtocolDecoder($buffer);
         $connection->redisResp = $redisResp;
         return $redisResp->parseResp();
     }
@@ -32,28 +32,56 @@ class Redis implements ProtocolInterface
 
     public static function decode($buffer, ConnectionInterface $connection)
     {
-        $redisResp = new RedisResp($buffer);
+        $redisResp = new RedisProtocolDecoder($buffer);
         $connection->redisResp = $redisResp;
         $redisResp->parseResp();
         return $redisResp->response;
     }
 
-    public static function replyByType($buffer, $reply_type)
+    public static function replyString($buffer)
     {
-        switch ($reply_type) {
-        case RedisResp::RESP_STRING:
-            return RedisResp::replyString($buffer);
-        case RedisResp::RESP_ERROR:
-            return RedisResp::replyError($buffer);
-        case RedisResp::RESP_INTEGER:
-            return RedisResp::replyInteger($buffer);
-        case RedisResp::RESP_BULK_STRING:
-            return RedisResp::replyBulkString($buffer);
-        case RedisResp::RESP_ARRAY:
-            return RedisResp::replyString($buffer);
+        return RedisProtocolDecoder::RESP_STRING . $buffer . RedisProtocolDecoder::CRLF;
+    }
+
+    public static function replyError($buffer)
+    {
+        return RedisProtocolDecoder::RESP_ERROR . $buffer . RedisProtocolDecoder::CRLF;
+    }
+
+    public static function replyInteger($buffer)
+    {
+        return RedisProtocolDecoder::RESP_INTEGER . $buffer . RedisProtocolDecoder::CRLF;
+    }
+
+    public static function replyBulkString($buffer)
+    {
+        if ($buffer === null) {
+            return RedisProtocolDecoder::RESP_BULK_STRING . -1 . RedisProtocolDecoder::CRLF;
         }
 
-        return $buffer;
+        return RedisProtocolDecoder::RESP_BULK_STRING . strlen($buffer) . RedisProtocolDecoder::CRLF . $buffer . RedisProtocolDecoder::CRLF;
+    }
+
+    public static function replyArray($buffer)
+    {
+        $res = RedisProtocolDecoder::RESP_ARRAY;
+
+        if ($buffer === null) {
+            $res .= -1 . RedisProtocolDecoder::CRLF;
+        } else {
+            $res .= count($buffer) . RedisProtocolDecoder::CRLF;
+            foreach ($buffer as $item) {
+                if (is_int($item)) {
+                    $res .= self::replyInteger($item);
+                } else if ($item === null || is_float($item) || is_string($item)) {
+                    $res .= self::replyBulkString($item);
+                } else if (is_array($item) || is_object($item)) {
+                    $res .= self::replyArray($item);
+                }
+            }
+        }
+
+        return $res;
     }
 }
 
