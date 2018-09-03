@@ -37,5 +37,10 @@ class Redis implements ProtocolInterface
         $redisResp->parseResp();
         return $redisResp->response;
     }
+
+    public static function reply($buffer)
+    {
+
+    }
 }
 
