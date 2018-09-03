@@ -83,5 +83,20 @@ class Redis implements ProtocolInterface
 
         return $res;
     }
+
+    public static function reply($buffer)
+    {
+        if (is_int($buffer)) {
+            $res = self::replyInteger($buffer);
+        } else if ($buffer === null || is_float($buffer) || is_string($buffer)) {
+            $res = self::replyBulkString($buffer);
+        } else if (is_array($buffer) || is_object($buffer)) {
+            $res = self::replyArray($buffer);
+        } else {
+            $res = "unknow buffer type";
+        }
+
+        return $res;
+    }
 }
 
