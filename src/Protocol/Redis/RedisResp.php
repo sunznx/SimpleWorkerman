@@ -125,22 +125,6 @@ class RedisResp
         return $total;
     }
 
-    public static function replyByType($buffer, $reply_type)
-    {
-        switch ($reply_type) {
-        case self::RESP_STRING:
-            return self::replyString($buffer);
-        case self::RESP_ERROR:
-            return self::replyError($buffer);
-        case self::RESP_INTEGER:
-            return self::replyInteger($buffer);
-        case self::RESP_BULK_STRING:
-            return self::replyBulkString($buffer);
-        case self::RESP_ARRAY:
-            return self::replyString($buffer);
-        }
-    }
-
     public static function replyString($buffer)
     {
         return self::RESP_STRING . $buffer . self::CRLF;
